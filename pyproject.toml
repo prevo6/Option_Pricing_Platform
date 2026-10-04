@@ -1,0 +1,29 @@
+[project]
+name = "option_pricing_platform"
+version = "0.1.0"
+dependencies = [
+    "psycopg[binary]",
+    "yfinance",
+    "streamlit",
+    "pandas==3.0.5",
+    "numpy==2.5.2",
+    "scipy==1.18.1",
+    "SQLAlchemy==2.0.52",
+    "psycopg==3.3.4",
+    "psycopg-binary==3.3.4",
+    "python-dotenv==1.2.3",
+    "requests==2.34.2",
+    "yfinance==1.6.0",
+    "massive==2.8.0",
+    "marketdata-sdk-py==1.3.0",
+    "beautifulsoup4==4.15.0",
+    "lxml==6.1.2",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["etl_scripts*", "database*", "utils*", "pricing_engine*", "app*", "tests*"]

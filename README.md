@@ -1,12 +1,11 @@
 # Option Pricing Platform
 
-A self-contained data engineering platform that extracts options chain data from multiple
+A self-contained data driven platform that extracts options chain data from multiple
 market data providers, loads it into Postgres through a staged ETL pipeline orchestrated by
 Airflow, and serves it through a Streamlit dashboard for options pricing (Black-Scholes,
 Binomial Tree, Monte Carlo) and analysis.
 
-This was built as a solo project to demonstrate practical data engineering skills: multi-source
-ingestion, schema design, orchestration, and containerized, reproducible deployment.
+Multi-source ingestion, schema design, orchestration, and containerized, reproducible deployment.
 
 <!-- TODO: add 2-3 screenshots/GIFs here — dashboard heatmap, Airflow DAG graph succeeding -->
 
@@ -63,7 +62,7 @@ and each maps to its own Airflow DAG and schedule.
 | Transformation | `pandas` |
 | Storage | PostgreSQL (Docker) |
 | Orchestration | Apache Airflow 3.x (Docker Compose, CeleryExecutor, `DockerOperator`) |
-| Pricing models | Black-Scholes, Binomial Tree (Monte Carlo in progress) — `numpy`, `scipy` |
+| Pricing models | Black-Scholes, Binomial Tree, Monte Carlo — `numpy`, `scipy` |
 | Dashboard | Streamlit, Plotly/Matplotlib |
 | Testing | `pytest` |
 
@@ -95,26 +94,30 @@ Option_Pricing_Platform/
 │   ├── visuals.py
 │   └── stage_tables.py
 ├── pricing_engine/
-│   ├── black.py
-│   └── binomial.py
+│   ├── black.py           # Black-Scholes + greeks
+│   ├── binomial.py        # Binomial tree (CRR) + visualization
+│   └── monte.py           # Monte Carlo simulation
 ├── app/
 │   ├── app.py
-│   └── callbacks.py
-├── airflow_dags/
-│   ├── alpaca_markets_dag.py
-│   ├── market_data_dag.py
-│   └── massive_dag.py
+├── scripts/
+│   └── seed_tracked_underlyings.py   # one-off: seed which tickers each pipeline tracks
 ├── airflow/
-│   ├── Dockerfile
-│   ├── docker-compose.yaml
-│   └── dags/            
+│   ├── Dockerfile                    # Airflow image + Docker provider
+│   ├── docker-compose.yaml           # Airflow stack (CeleryExecutor, Redis, Postgres)
+│   ├── .env.example
+│   └── dags/
+│       ├── alpaca_markets_dag.py
+│       ├── market_data_dag.py
+│       └── massive_dag.py
+├── docker/
+│   └── docker-compose.yml            # the project's own data Postgres
 ├── tests/
-│   ├── test_black_scholes.py
-│   ├── test_binomial_tree.py
-│   ├── test_occ_symbol_parsing.py
-│   └── test_transform_dedup.py
-├── Dockerfile             # builds the ETL image DockerOperator runs
-├── docker-compose.yml     # the project's own Postgres
+│   ├── test_black_prices.py
+│   ├── test_greeks.py
+│   ├── test_binomial.py
+│   ├── test_monte.py
+│   └── test_occ_symbol.py
+├── Dockerfile                        # builds the ETL image DockerOperator runs
 ├── pyproject.toml
 └── .env.example
 ```
@@ -139,7 +142,9 @@ cp .env.example .env   # fill in your own API keys / DB credentials
 ### 2. Start the data Postgres container
 
 ```bash
+cd docker
 docker compose up -d
+cd ..
 ```
 
 ### 3. Run the dashboard
@@ -150,7 +155,22 @@ streamlit run app/app.py
 
 ### 4. (Optional) Run the orchestrated pipelines with Airflow
 
+Create Airflow's environment file first:
+
 ```bash
+cp airflow/.env.example airflow/.env
+```
+
+Fill in `AIRFLOW_UID` (run `id -u`) and `FERNET_KEY`, which you can generate with:
+
+```bash
+docker run --rm apache/airflow:3.3.1 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Build the ETL image (rebuild it after any code change), then start the stack:
+
+```bash
+docker build -t option-pricing-etl:latest .
 cd airflow
 docker compose up airflow-init   # first time only
 docker compose up -d
@@ -160,31 +180,16 @@ Airflow UI: [http://localhost:8080](http://localhost:8080) (default login `airfl
 DAGs are paused by default — unpause `alpaca_markets_dag`, `market_data_dag`, and `massive_dag`
 from the UI to let them run on schedule, or trigger manually.
 
-The ETL image needs to be built once (and rebuilt after any code change) before Airflow can run it:
-
-```bash
-docker build -t option-pricing-etl:latest .
-```
+Each DAG task runs inside its own container and reaches the data Postgres through
+`host.docker.internal`, which Docker Desktop provides on Mac and Windows.
 
 ## Running tests
+
+From the project root:
 
 ```bash
 pytest -v
 ```
-
-## What I'd do differently / lessons learned
-
-<!-- TODO: fill this in — a few honest sentences go a long way. Ideas based on this project: -->
-- Underestimated how much import-path resolution differs across entry points (plain script,
-  `pytest`, `streamlit run`, Airflow's `DockerOperator`) — settled on an editable install
-  (`pip install -e .`) as the one fix that works everywhere, rather than patching `sys.path` per
-  entry point.
-- Hit the same `ON CONFLICT ... DO UPDATE` cardinality violation twice, from two different
-  sources, before writing a dedup step into the transform stage as a standing rule rather than a
-  one-off fix.
-- Learned Docker and Airflow from scratch specifically to make this project's ETL layer
-  reproducible and independently orchestrated — the environment isolation problem (Airflow's own
-  Python environment vs. the project's dependencies) was the most instructive part.
 
 ## Roadmap
 

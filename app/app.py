@@ -227,17 +227,16 @@ def render_heatmaps():
 def compute_greeks(call_option, put_option): 
 
     call, put = heatmap_container.columns(2)
-
     call.slider('Call Delta', min_value=0.0, max_value= 100.00, value=call_option.delta() * 100)
     call.slider('Call Gamma', min_value=0.0, max_value= 1.0, value=call_option.gamma())
-    call.slider('Call Theta', max_value= 0.0, min_value=-100.0, value=call_option.theta())
-    call.slider('Vega', min_value=0.0, max_value= 100.0, value=call_option.vega())
+    call.slider('Call Theta', max_value= 0.0, min_value=-0.25, value=call_option.theta())
+    call.slider('Vega', min_value=0.0, max_value= 1.0, value=call_option.vega())
     call.slider('Call Rho', min_value=0.0, max_value= 1.0, value=call_option.rho())
 
     put.slider("Put Delta", min_value=-100.00, max_value= 0.0, value=put_option.delta() * 100)
     put.slider("Put Gamma", min_value = 0.0, max_value= 1.0, value =put_option.gamma())
-    put.slider('Put Theta', min_value= -100.0, max_value= 0.0, value=put_option.theta())
-    put.slider('Vega', min_value=0.0, max_value= 100.00, value=put_option.vega())
+    put.slider('Put Theta', min_value= -0.25, max_value= 0.0, value=put_option.theta())
+    put.slider('Vega', min_value=0.0, max_value= 1.0, value=put_option.vega())
     put.slider('Put Rho', min_value=-1.0, max_value= 0.0, value=put_option.rho())
 
 def set_expiry_state():
